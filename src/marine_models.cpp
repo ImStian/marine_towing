@@ -78,7 +78,8 @@ public:
     MarineModelNode()
         : rclcpp::Node("marine_model_node"),
           theta_(0.0), theta_dot_(0.0),
-          F_0_(Eigen::Vector2d::Zero()), F_(Eigen::Vector2d::Zero()), F_u_(Eigen::Vector2d::Zero())
+          F_0_(Eigen::Vector2d::Zero()), F_(Eigen::Vector2d::Zero()), F_u_(Eigen::Vector2d::Zero()),
+          prev_v_0_(Eigen::Vector2d::Zero()), prev_v_(Eigen::Vector2d::Zero())
     {
         theta_sub_ = this->create_subscription<std_msgs::msg::Float64>(
             "theta_topic", 10,
@@ -129,11 +130,21 @@ private:
         double m = 5;
         double m0 = 15;
         double L = 10;
+        double c_0 = 2.0; // Damping coefficient for F_0
+        double c   = 1.0; // Damping coefficient for F
         double theta = theta_;
         double theta_dot = theta_dot_;
 
-        Eigen::Vector2d F_0 = F_0_;
-        Eigen::Vector2d F = F_;
+        // Ocean velocity (constant)
+        Eigen::Vector2d v_c(0.1, 0.1); // Example: 0.1 m/s in both x and y directions
+
+        // Use previous velocities for v_0 and v
+        Eigen::Vector2d v_0 = prev_v_0_;
+        Eigen::Vector2d v   = prev_v_;
+
+        // Compute damping forces
+        Eigen::Vector2d F_0 = -c_0 * (v_0 - v_c);
+        Eigen::Vector2d F   = -c   * (v   - v_c);
         Eigen::Vector2d F_u = F_u_;
 
         Eigen::Matrix<double, 2, 3> J_0;
@@ -149,6 +160,12 @@ private:
         Eigen::Vector3d Qu = J_0.transpose() * F_u;
 
         std::vector<double> new_state = marine_model_step(m, m0, L, theta, theta_dot, Q0, Q, Qu);
+
+        // Update previous velocities for next iteration
+        if (new_state.size() >= 2) {
+            prev_v_0_ << new_state[0], new_state[1];
+            prev_v_  << new_state[0], new_state[1];
+        }
 
         auto msg = std_msgs::msg::Float64MultiArray();
         msg.data = new_state;
@@ -167,6 +184,8 @@ private:
     Eigen::Vector2d F_0_;
     Eigen::Vector2d F_;
     Eigen::Vector2d F_u_;
+    Eigen::Vector2d prev_v_0_;
+    Eigen::Vector2d prev_v_;
 };
 
 int main(int argc, char * argv[]) {

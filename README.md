@@ -9,6 +9,20 @@
 - Uses Eigen for matrix computations
 - Subscribes to state and force topics
 - Publishes computed marine state
+- Integrates velocity and position for visualization
+- Models damping forces using previous velocities and ocean current
+
+## Model Details
+
+- Damping forces are computed as:
+  - `F_0 = -c_0 * (v_0 - v_c)`
+  - `F   = -c * (v - v_c)`
+  - where `c_0` and `c` are damping coefficients, `v_0` and `v` are previous velocities, and `v_c` is the ocean current (default: `[0.5, 0.0]`).
+- Velocities are updated each timestep from the previous state.
+
+## Visualization
+
+A separate node (`marine_state_visualizer`) integrates acceleration to velocity and position, publishing a `visualization_msgs/Marker` for RViz visualization.
 
 ## Build Instructions
 
@@ -56,6 +70,7 @@
   - `/F_u_topic` (`std_msgs/msg/Float64MultiArray`): Control force from USV thrusters
 - **Published:**
   - `/marine_state` (`std_msgs/msg/Float64MultiArray`): Computed state (acceleration)
+  - `/marine_state_marker` (`visualization_msgs/msg/Marker`): Vessel position for RViz
 
 ## License
 
